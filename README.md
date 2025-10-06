@@ -1,6 +1,6 @@
 # Go Temperature Converter
 
-A tiny command-line utility for converting temperatures between Celsius and Fahrenheit. It accepts a value with its unit (for example `36.6C` or `100F`), performs the conversion, and prints the result with two decimal places. The project is intentionally small and self-contained so it can serve as a reference for basic Go CLI patterns and table-driven tests.
+A tiny command-line utility for converting temperatures between Celsius, Fahrenheit, and Kelvin. It accepts a value with its unit (for example `36.6C`, `100F`, or `300K`) and optionally a target unit, performs the conversion, and prints the result with two decimal places. The project is intentionally small and self-contained so it can serve as a reference for basic Go CLI patterns and table-driven tests.
 
 ## Requirements
 
@@ -30,7 +30,7 @@ go build -o temp-converter
 
 ## Usage
 
-Provide a single argument combining the numeric value with either `C` or `F`.
+Provide a value (with `C`, `F`, or `K`) and optionally a target scale (`C`, `F`, or `K`). If you skip the target unit, the tool converts to a sensible default (for example Celsius to Fahrenheit).
 
 ```bash
 go run . 36.6C
@@ -38,13 +38,19 @@ go run . 36.6C
 
 go run . 100F
 # 100.00°F = 37.78°C
+
+go run . 300K
+# 300.00K = 26.85°C
+
+go run . 36.6C K
+# 36.60°C = 309.75K
 ```
 
 Invalid input is reported with an error message and a non-zero exit code. For example:
 
 ```bash
-go run . 10K
-# Unknown unit. Please use C or F (e.g., 36.6C or 100F).
+go run . 10C X
+# Unknown target unit. Please use C, F, or K.
 ```
 
 ## Testing

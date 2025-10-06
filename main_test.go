@@ -28,12 +28,30 @@ func TestConvertTemperature(t *testing.T) {
 			want:         "100.00°F = 37.78°C",
 		},
 		{
+			name:         "KelvinToCelsius",
+			args:         []string{"300k"},
+			wantExitCode: 0,
+			want:         "300.00K = 26.85°C",
+		},
+		{
+			name:         "CelsiusToKelvinTarget",
+			args:         []string{"25c", "K"},
+			wantExitCode: 0,
+			want:         "25.00°C = 298.15K",
+		},
+		{
+			name:         "FahrenheitToKelvinTarget",
+			args:         []string{"32F", "k"},
+			wantExitCode: 0,
+			want:         "32.00°F = 273.15K",
+		},
+		{
 			name:         "NoArguments",
 			args:         nil,
 			wantExitCode: 1,
 			wantContains: []string{
-				"Usage: go run main.go <temperature><C|F>",
-				"Example: go run main.go 36.6C or go run main.go 100F",
+				"Usage: go run main.go <temperature><C|F|K> [<C|F|K>]",
+				"Example: go run main.go 36.6C F, go run main.go 100F C, or go run main.go 300K C",
 			},
 		},
 		{
@@ -44,9 +62,15 @@ func TestConvertTemperature(t *testing.T) {
 		},
 		{
 			name:         "UnknownUnit",
-			args:         []string{"10K"},
+			args:         []string{"10X"},
 			wantExitCode: 1,
-			want:         "Unknown unit. Please use C or F (e.g., 36.6C or 100F).",
+			want:         "Unknown unit. Please use C, F, or K (e.g., 36.6C, 100F, or 300K).",
+		},
+		{
+			name:         "UnknownTargetUnit",
+			args:         []string{"10C", "X"},
+			wantExitCode: 1,
+			want:         "Unknown target unit. Please use C, F, or K.",
 		},
 	}
 
