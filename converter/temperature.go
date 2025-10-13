@@ -1,55 +1,47 @@
 package converter
 
-import "fmt"
-
-// Unit represents the supported temperature scales.
 type Unit rune
 
 const (
-	// UnitCelsius is the Celsius temperature scale.
 	UnitCelsius Unit = 'C'
-	// UnitFahrenheit is the Fahrenheit temperature scale.
 	UnitFahrenheit Unit = 'F'
-	// UnitKelvin is the Kelvin temperature scale.
 	UnitKelvin Unit = 'K'
 )
 
-// String converts a Unit to its string representation.
 func (unit Unit) String() string {
 	return string(unit)
 }
 
-// Validate ensures the unit is one of the supported scales.
 func (unit Unit) Validate() error {
 	switch unit {
 	case UnitCelsius, UnitFahrenheit, UnitKelvin:
 		return nil
 	default:
-		return fmt.Errorf("unknown unit %q", string(unit))
+		return &ValidationError{
+			Operation: "unit validation",
+			Field:  "unit",
+			Value:  string(unit),
+			Reason: "must be one of C, F, or K",
+		}
 	}
 }
 
-// CelsiusToFahrenheit converts from Celsius to Fahrenheit.
 func CelsiusToFahrenheit(celsiusValue float64) float64 {
 	return (celsiusValue * 9 / 5) + 32
 }
 
-// FahrenheitToCelsius converts from Fahrenheit to Celsius.
 func FahrenheitToCelsius(fahrenheitValue float64) float64 {
 	return (fahrenheitValue - 32) * 5 / 9
 }
 
-// CelsiusToKelvin converts from Celsius to Kelvin.
 func CelsiusToKelvin(celsiusValue float64) float64 {
 	return celsiusValue + 273.15
 }
 
-// KelvinToCelsius converts from Kelvin to Celsius.
 func KelvinToCelsius(kelvinValue float64) float64 {
 	return kelvinValue - 273.15
 }
 
-// ToCelsius converts the value expressed in the given unit to Celsius.
 func ToCelsius(value float64, unit Unit) (float64, error) {
 	switch unit {
 	case UnitCelsius:
@@ -59,11 +51,19 @@ func ToCelsius(value float64, unit Unit) (float64, error) {
 	case UnitKelvin:
 		return KelvinToCelsius(value), nil
 	default:
-		return 0, fmt.Errorf("unknown unit %q", string(unit))
+		return 0, &ConversionError{
+			Operation: "convert to celsius",
+			Unit: unit,
+			Err:  &ValidationError{
+				Operation: "unit validation",
+				Field:  "source unit",
+				Value:  string(unit),
+				Reason: "unknown unit",
+			},
+		}
 	}
 }
 
-// FromCelsius converts a Celsius value into the requested unit.
 func FromCelsius(value float64, unit Unit) (float64, error) {
 	switch unit {
 	case UnitCelsius:
@@ -73,17 +73,34 @@ func FromCelsius(value float64, unit Unit) (float64, error) {
 	case UnitKelvin:
 		return CelsiusToKelvin(value), nil
 	default:
-		return 0, fmt.Errorf("unknown unit %q", string(unit))
+		return 0, &ConversionError{
+			Operation: "convert from celsius",
+			Unit: unit,
+			Err:  &ValidationError{
+				Operation: "unit validation",
+				Field:  "target unit",
+				Value:  string(unit),
+				Reason: "unknown unit",
+			},
+		}
 	}
 }
 
-// Convert transforms a temperature value from one unit to another.
 func Convert(value float64, from Unit, to Unit) (float64, error) {
 	if err := from.Validate(); err != nil {
-		return 0, err
+		return 0, &ConversionError{
+			Operation: "validate source unit",
+			Unit:  from,
+			Value: value,
+			Err:   err,
+		}
 	}
 	if err := to.Validate(); err != nil {
-		return 0, err
+		return 0, &ConversionError{
+			Operation: "validate target unit",
+			Unit: to,
+			Err:  err,
+		}
 	}
 
 	celsius, err := ToCelsius(value, from)
@@ -94,7 +111,6 @@ func Convert(value float64, from Unit, to Unit) (float64, error) {
 	return FromCelsius(celsius, to)
 }
 
-// DefaultTargetUnit suggests a sensible target unit based on the source.
 func DefaultTargetUnit(source Unit) Unit {
 	switch source {
 	case UnitCelsius:
@@ -108,7 +124,6 @@ func DefaultTargetUnit(source Unit) Unit {
 	}
 }
 
-// UnitSuffix returns the human-friendly suffix for display purposes.
 func UnitSuffix(unit Unit) string {
 	switch unit {
 	case UnitCelsius:

@@ -47,7 +47,7 @@ func TestSequentialAndConcurrentProduceSameResults(t *testing.T) {
 		t.Fatalf("ProcessSequential error: %v", err)
 	}
 
-	concurrent, err := ProcessConcurrent(ctx, jobs, 2, 2)
+	concurrent, err := ProcessConcurrent(ctx, jobs, WithWorkers(2), WithBuffer(2))
 	if err != nil {
 		t.Fatalf("ProcessConcurrent error: %v", err)
 	}
@@ -79,7 +79,7 @@ func TestProcessConcurrentHonorsContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	results, err := ProcessConcurrent(ctx, jobs, 4, 4)
+	results, err := ProcessConcurrent(ctx, jobs, WithWorkers(4), WithBuffer(4))
 	if err == nil {
 		t.Fatalf("expected context cancellation error, got nil")
 	}
@@ -157,13 +157,13 @@ func BenchmarkProcessConcurrent(b *testing.B) {
 	for _, benchmarkCase := range benchmarks {
 		b.Run(benchmarkCase.name, func(b *testing.B) {
 			// Warm-up
-			if _, err := ProcessConcurrent(ctx, jobs, benchmarkCase.workers, benchmarkCase.buffer); err != nil {
+			if _, err := ProcessConcurrent(ctx, jobs, WithWorkers(benchmarkCase.workers), WithBuffer(benchmarkCase.buffer)); err != nil {
 				b.Fatalf("warm-up failed: %v", err)
 			}
 
 			b.ResetTimer()
 			for iteration := 0; iteration < b.N; iteration++ {
-				results, err := ProcessConcurrent(ctx, jobs, benchmarkCase.workers, benchmarkCase.buffer)
+				results, err := ProcessConcurrent(ctx, jobs, WithWorkers(benchmarkCase.workers), WithBuffer(benchmarkCase.buffer))
 				if err != nil {
 					b.Fatalf("ProcessConcurrent error: %v", err)
 				}
@@ -182,7 +182,7 @@ func BenchmarkProcessConcurrentWithTimeout(b *testing.B) {
 	b.ResetTimer()
 	for iteration := 0; iteration < b.N; iteration++ {
 		timeoutCtx, cancel := context.WithTimeout(context.Background(), timeout)
-		_, _ = ProcessConcurrent(timeoutCtx, jobs, runtime.NumCPU(), runtime.NumCPU())
+		_, _ = ProcessConcurrent(timeoutCtx, jobs, WithWorkers(runtime.NumCPU()), WithBuffer(runtime.NumCPU()))
 		cancel()
 	}
 }
