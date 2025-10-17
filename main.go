@@ -62,11 +62,6 @@ func convertTemperature(args []string) (string, int) {
 
 func processBatch(filePath, mode string, workers, buffer int, timeout time.Duration) error {
 	batchCtx := context.Background()
-	if timeout > 0 {
-		var cancel context.CancelFunc
-		batchCtx, cancel = context.WithTimeout(batchCtx, timeout)
-		defer cancel()
-	}
 
 	jobs, err := converter.LoadJobsFromFile(batchCtx, filePath)
 	if err != nil {
@@ -82,7 +77,18 @@ func processBatch(filePath, mode string, workers, buffer int, timeout time.Durat
 	case "sequential":
 		results, err = converter.ProcessSequential(batchCtx, jobs)
 	case "concurrent":
-		results, err = converter.ProcessConcurrent(batchCtx, jobs, workers, buffer)
+		// Build options for concurrent processing
+		var opts []converter.ProcessOption
+		if workers > 0 {
+			opts = append(opts, converter.WithWorkers(workers))
+		}
+		if buffer > 0 {
+			opts = append(opts, converter.WithBuffer(buffer))
+		}
+		if timeout > 0 {
+			opts = append(opts, converter.WithTimeout(timeout))
+		}
+		results, err = converter.ProcessConcurrent(batchCtx, jobs, opts...)
 	default:
 		return fmt.Errorf("unknown mode %q (expected sequential or concurrent)", mode)
 	}

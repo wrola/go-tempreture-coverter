@@ -6,19 +6,16 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"runtime"
 	"sync"
 	"time"
 )
 
-// Job represents a temperature conversion task.
 type Job struct {
 	Value float64 `json:"value"`
 	From  Unit    `json:"from"`
 	To    Unit    `json:"to"`
 }
 
-// Validate ensures the job contains supported units.
 func (j Job) Validate() error {
 	if err := j.From.Validate(); err != nil {
 		return fmt.Errorf("invalid source unit: %w", err)
@@ -29,11 +26,10 @@ func (j Job) Validate() error {
 	return nil
 }
 
-// Result captures the outcome of processing a Job.
 type Result struct {
+	Err       error
 	Job       Job
 	Converted float64
-	Err       error
 	Index     int
 	Elapsed   time.Duration
 }
@@ -65,7 +61,6 @@ func LoadJobsFromReader(ctx context.Context, r io.Reader) ([]Job, error) {
 	return jobs, nil
 }
 
-// LoadJobsFromFile reads a JSON file and returns the jobs.
 func LoadJobsFromFile(ctx context.Context, filename string) ([]Job, error) {
 	f, err := os.Open(filename)
 	if err != nil {
@@ -76,13 +71,16 @@ func LoadJobsFromFile(ctx context.Context, filename string) ([]Job, error) {
 	return LoadJobsFromReader(ctx, f)
 }
 
-// ProcessSequential converts the jobs one by one.
 func ProcessSequential(ctx context.Context, jobs []Job) ([]Result, error) {
 	results := make([]Result, 0, len(jobs))
 	for idx, job := range jobs {
 		select {
 		case <-ctx.Done():
-			return results, ctx.Err()
+			return results, &ProcessingError{
+				Operation: "sequential processing",
+				JobIndex:  idx,
+				Err:       ctx.Err(),
+			}
 		default:
 		}
 
@@ -105,20 +103,20 @@ type jobRequest struct {
 	job   Job
 }
 
-// ProcessConcurrent converts the jobs using worker goroutines and channels.
-func ProcessConcurrent(ctx context.Context, jobs []Job, workerCount, bufferSize int) ([]Result, error) {
-	if workerCount <= 0 {
-		workerCount = runtime.NumCPU()
-	}
-	if bufferSize < 0 {
-		bufferSize = 0
+func ProcessConcurrent(ctx context.Context, jobs []Job, opts ...ProcessOption) ([]Result, error) {
+	options := buildOptions(opts...)
+
+	if options.Timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, options.Timeout)
+		defer cancel()
 	}
 
 	jobCh := make(chan jobRequest)
-	resultCh := make(chan Result, bufferSize)
+	resultCh := make(chan Result, options.BufferSize)
 
 	var workerWG sync.WaitGroup
-	for workerIndex := 0; workerIndex < workerCount; workerIndex++ {
+	for workerIndex := 0; workerIndex < options.Workers; workerIndex++ {
 		workerWG.Add(1)
 		go func() {
 			defer workerWG.Done()
@@ -170,7 +168,11 @@ func ProcessConcurrent(ctx context.Context, jobs []Job, workerCount, bufferSize 
 	for {
 		select {
 		case <-ctx.Done():
-			return results[:collected], ctx.Err()
+			return results[:collected], &ProcessingError{
+				Operation: "concurrent processing",
+				JobIndex:  -1,
+				Err:       ctx.Err(),
+			}
 		case result, ok := <-resultCh:
 			if !ok {
 				return results[:collected], nil
