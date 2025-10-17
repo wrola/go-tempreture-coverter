@@ -37,17 +37,17 @@ func buildOptions(opts ...ProcessOption) *ProcessOptions {
 		BufferSize: 0,
 		Timeout:    0,
 	}
-	
+
 	for _, opt := range opts {
 		opt(options)
 	}
-	
+
 	if options.Workers <= 0 {
 		options.Workers = runtime.NumCPU()
 	}
 	if options.BufferSize < 0 {
 		options.BufferSize = 0
 	}
-	
+
 	return options
 }

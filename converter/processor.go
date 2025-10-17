@@ -27,9 +27,9 @@ func (j Job) Validate() error {
 }
 
 type Result struct {
+	Err       error
 	Job       Job
 	Converted float64
-	Err       error
 	Index     int
 	Elapsed   time.Duration
 }
@@ -71,7 +71,6 @@ func LoadJobsFromFile(ctx context.Context, filename string) ([]Job, error) {
 	return LoadJobsFromReader(ctx, f)
 }
 
-
 func ProcessSequential(ctx context.Context, jobs []Job) ([]Result, error) {
 	results := make([]Result, 0, len(jobs))
 	for idx, job := range jobs {
@@ -79,8 +78,8 @@ func ProcessSequential(ctx context.Context, jobs []Job) ([]Result, error) {
 		case <-ctx.Done():
 			return results, &ProcessingError{
 				Operation: "sequential processing",
-				JobIndex: idx,
-				Err:      ctx.Err(),
+				JobIndex:  idx,
+				Err:       ctx.Err(),
 			}
 		default:
 		}
@@ -106,7 +105,6 @@ type jobRequest struct {
 
 func ProcessConcurrent(ctx context.Context, jobs []Job, opts ...ProcessOption) ([]Result, error) {
 	options := buildOptions(opts...)
-	
 
 	if options.Timeout > 0 {
 		var cancel context.CancelFunc
@@ -172,8 +170,8 @@ func ProcessConcurrent(ctx context.Context, jobs []Job, opts ...ProcessOption) (
 		case <-ctx.Done():
 			return results[:collected], &ProcessingError{
 				Operation: "concurrent processing",
-				JobIndex: -1, 
-				Err:      ctx.Err(),
+				JobIndex:  -1,
+				Err:       ctx.Err(),
 			}
 		case result, ok := <-resultCh:
 			if !ok {

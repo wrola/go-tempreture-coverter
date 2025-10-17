@@ -3,9 +3,9 @@ package converter
 type Unit rune
 
 const (
-	UnitCelsius Unit = 'C'
+	UnitCelsius    Unit = 'C'
 	UnitFahrenheit Unit = 'F'
-	UnitKelvin Unit = 'K'
+	UnitKelvin     Unit = 'K'
 )
 
 func (unit Unit) String() string {
@@ -19,9 +19,9 @@ func (unit Unit) Validate() error {
 	default:
 		return &ValidationError{
 			Operation: "unit validation",
-			Field:  "unit",
-			Value:  string(unit),
-			Reason: "must be one of C, F, or K",
+			Field:     "unit",
+			Value:     string(unit),
+			Reason:    "must be one of C, F, or K",
 		}
 	}
 }
@@ -53,12 +53,12 @@ func ToCelsius(value float64, unit Unit) (float64, error) {
 	default:
 		return 0, &ConversionError{
 			Operation: "convert to celsius",
-			Unit: unit,
-			Err:  &ValidationError{
+			Unit:      unit,
+			Err: &ValidationError{
 				Operation: "unit validation",
-				Field:  "source unit",
-				Value:  string(unit),
-				Reason: "unknown unit",
+				Field:     "source unit",
+				Value:     string(unit),
+				Reason:    "unknown unit",
 			},
 		}
 	}
@@ -75,12 +75,12 @@ func FromCelsius(value float64, unit Unit) (float64, error) {
 	default:
 		return 0, &ConversionError{
 			Operation: "convert from celsius",
-			Unit: unit,
-			Err:  &ValidationError{
+			Unit:      unit,
+			Err: &ValidationError{
 				Operation: "unit validation",
-				Field:  "target unit",
-				Value:  string(unit),
-				Reason: "unknown unit",
+				Field:     "target unit",
+				Value:     string(unit),
+				Reason:    "unknown unit",
 			},
 		}
 	}
@@ -90,16 +90,16 @@ func Convert(value float64, from Unit, to Unit) (float64, error) {
 	if err := from.Validate(); err != nil {
 		return 0, &ConversionError{
 			Operation: "validate source unit",
-			Unit:  from,
-			Value: value,
-			Err:   err,
+			Unit:      from,
+			Value:     value,
+			Err:       err,
 		}
 	}
 	if err := to.Validate(); err != nil {
 		return 0, &ConversionError{
 			Operation: "validate target unit",
-			Unit: to,
-			Err:  err,
+			Unit:      to,
+			Err:       err,
 		}
 	}
 

@@ -3,10 +3,10 @@ package converter
 import "fmt"
 
 type ConversionError struct {
-	Operation    string
-	Unit  Unit
-	Value float64
-	Err   error
+	Err       error
+	Operation string
+	Value     float64
+	Unit      Unit
 }
 
 func (e *ConversionError) Error() string {
@@ -21,10 +21,10 @@ func (e *ConversionError) Unwrap() error {
 }
 
 type ValidationError struct {
-	Operation     string
-	Field  string
-	Value  string
-	Reason string
+	Operation string
+	Field     string
+	Value     string
+	Reason    string
 }
 
 func (e *ValidationError) Error() string {
@@ -35,9 +35,9 @@ func (e *ValidationError) Error() string {
 }
 
 type ProcessingError struct {
-	Operation       string
-	JobIndex int
-	Err      error
+	Err       error
+	Operation string
+	JobIndex  int
 }
 
 func (e *ProcessingError) Error() string {

@@ -10,18 +10,18 @@ func ParseUnit(unitValue string) (Unit, error) {
 	if normalized == "" {
 		return 0, &ValidationError{
 			Operation: "parse unit",
-			Field:  "unit",
-			Value:  unitValue,
-			Reason: "cannot be empty",
+			Field:     "unit",
+			Value:     unitValue,
+			Reason:    "cannot be empty",
 		}
 	}
 
 	if len(normalized) != 1 {
 		return 0, &ValidationError{
 			Operation: "parse unit",
-			Field:  "unit",
-			Value:  unitValue,
-			Reason: "must be exactly one character",
+			Field:     "unit",
+			Value:     unitValue,
+			Reason:    "must be exactly one character",
 		}
 	}
 
