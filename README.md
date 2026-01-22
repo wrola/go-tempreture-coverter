@@ -71,18 +71,42 @@ You can also enforce a timeout:
 go run . --file data/temperatures.json --mode concurrent --timeout 500ms
 ```
 
-## Testing & Benchmarks
+## Development
+
+### Code Quality
+
+This project uses [golangci-lint](https://golangci-lint.run/) for linting and code quality checks. A `Makefile` is provided for common development tasks:
+
+```bash
+# Format code
+make fmt
+
+# Run linting
+make lint
+
+# Auto-fix linting issues where possible
+make lint-fix
+
+# Run all quality checks (format, lint, test)
+make ci
+```
+
+### Testing & Benchmarks
 
 Run all tests (CLI table tests plus processor tests) with:
 
 ```bash
 go test ./...
+# or
+make test
 ```
 
 Benchmark the sequential and concurrent processors to compare throughput:
 
 ```bash
 go test -bench=. ./converter
+# or 
+make bench
 ```
 
 ## Project Structure
