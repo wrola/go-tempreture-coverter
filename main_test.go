@@ -9,11 +9,11 @@ func TestConvertTemperature(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name         string
-		args         []string
-		wantExitCode int
-		want         string
 		wantContains []string
+		args         []string
+		want         string
+		name         string
+		wantExitCode int
 	}{
 		{
 			name:         "CelsiusToFahrenheit",

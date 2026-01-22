@@ -31,11 +31,11 @@ func (j Job) Validate() error {
 
 // Result captures the outcome of processing a Job.
 type Result struct {
-	Job       Job
-	Converted float64
 	Err       error
-	Index     int
+	Job       Job
 	Elapsed   time.Duration
+	Converted float64
+	Index     int
 }
 
 // LoadJobsFromReader decodes jobs from JSON.
@@ -66,12 +66,16 @@ func LoadJobsFromReader(ctx context.Context, r io.Reader) ([]Job, error) {
 }
 
 // LoadJobsFromFile reads a JSON file and returns the jobs.
-func LoadJobsFromFile(ctx context.Context, filename string) ([]Job, error) {
+func LoadJobsFromFile(ctx context.Context, filename string) (jobs []Job, err error) {
 	f, err := os.Open(filename)
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() {
+		if closeErr := f.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 
 	return LoadJobsFromReader(ctx, f)
 }
@@ -105,6 +109,47 @@ type jobRequest struct {
 	job   Job
 }
 
+func processJob(ctx context.Context, req jobRequest) (Result, bool) {
+	select {
+	case <-ctx.Done():
+		return Result{}, false
+	default:
+	}
+
+	start := time.Now()
+	converted, err := Convert(req.job.Value, req.job.From, req.job.To)
+
+	return Result{
+		Job:       req.job,
+		Converted: converted,
+		Err:       err,
+		Index:     req.index,
+		Elapsed:   time.Since(start),
+	}, true
+}
+
+func startWorkers(ctx context.Context, workerCount int, jobCh <-chan jobRequest, resultCh chan<- Result) *sync.WaitGroup {
+	var wg sync.WaitGroup
+	for i := 0; i < workerCount; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for req := range jobCh {
+				result, ok := processJob(ctx, req)
+				if !ok {
+					return
+				}
+				select {
+				case <-ctx.Done():
+					return
+				case resultCh <- result:
+				}
+			}
+		}()
+	}
+	return &wg
+}
+
 // ProcessConcurrent converts the jobs using worker goroutines and channels.
 func ProcessConcurrent(ctx context.Context, jobs []Job, workerCount, bufferSize int) ([]Result, error) {
 	if workerCount <= 0 {
@@ -117,55 +162,29 @@ func ProcessConcurrent(ctx context.Context, jobs []Job, workerCount, bufferSize 
 	jobCh := make(chan jobRequest)
 	resultCh := make(chan Result, bufferSize)
 
-	var workerWG sync.WaitGroup
-	for workerIndex := 0; workerIndex < workerCount; workerIndex++ {
-		workerWG.Add(1)
-		go func() {
-			defer workerWG.Done()
-			for workRequest := range jobCh {
-				select {
-				case <-ctx.Done():
-					return
-				default:
-				}
-
-				start := time.Now()
-				converted, err := Convert(workRequest.job.Value, workRequest.job.From, workRequest.job.To)
-
-				result := Result{
-					Job:       workRequest.job,
-					Converted: converted,
-					Err:       err,
-					Index:     workRequest.index,
-					Elapsed:   time.Since(start),
-				}
-
-				select {
-				case <-ctx.Done():
-					return
-				case resultCh <- result:
-				}
-			}
-		}()
-	}
+	wg := startWorkers(ctx, workerCount, jobCh, resultCh)
 
 	go func() {
-		workerWG.Wait()
+		wg.Wait()
 		close(resultCh)
 	}()
 
 	go func() {
 		defer close(jobCh)
-		for jobIndex, job := range jobs {
+		for idx, job := range jobs {
 			select {
 			case <-ctx.Done():
 				return
-			case jobCh <- jobRequest{index: jobIndex, job: job}:
+			case jobCh <- jobRequest{index: idx, job: job}:
 			}
 		}
 	}()
 
-	results := make([]Result, len(jobs))
+	return collectResults(ctx, resultCh, len(jobs))
+}
+
+func collectResults(ctx context.Context, resultCh <-chan Result, total int) ([]Result, error) {
+	results := make([]Result, total)
 	collected := 0
 	for {
 		select {
@@ -173,11 +192,14 @@ func ProcessConcurrent(ctx context.Context, jobs []Job, workerCount, bufferSize 
 			return results[:collected], ctx.Err()
 		case result, ok := <-resultCh:
 			if !ok {
+				if ctx.Err() != nil {
+					return results[:collected], ctx.Err()
+				}
 				return results[:collected], nil
 			}
 			results[result.Index] = result
 			collected++
-			if collected == len(jobs) {
+			if collected == total {
 				return results, nil
 			}
 		}

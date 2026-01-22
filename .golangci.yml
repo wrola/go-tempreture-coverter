@@ -42,3 +42,5 @@ issues:
       linters:
         - gocyclo
         - errcheck
+    - path: _test\.go
+      text: "fieldalignment"
